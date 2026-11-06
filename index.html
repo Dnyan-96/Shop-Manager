@@ -2,44 +2,69 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Balaji Sugandhalay - POS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Balaji Sugandhalay - POS & Retail</title>
   
-  <!-- PWA Essential Meta Tags -->
-  <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#8b1538">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="BalajiPOS">
-  <link rel="apple-touch-icon" href="./icon-192.png">
-  
   <link rel="stylesheet" href="./style.css">
   
-  <!-- Dexie IndexedDB -->
-  <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.4/dist/dexie.min.js"></script>
+  <!-- HTML5 QR Code & Barcode Camera Scanner -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <!-- QRCode Generator for Dynamic UPI Payment QRs -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </head>
 <body>
-  <div class="sidebar">
-    <div class="brand">
-      <img src="./logo.png" alt="Balaji Sugandhalay Logo">
-      <div>
-        <h2>Balaji Sugandhalay</h2>
-        <span>Retail POS</span>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-badge">ॐ</div>
+        <div class="brand-text">
+          <h2>Balaji Sugandhalay</h2>
+          <span class="tagline">Pooja Samagri & Perfumes</span>
+        </div>
       </div>
-    </div>
-    <nav class="nav-menu">
-      <button class="nav-btn active" data-view="billing">⚡ Billing / POS</button>
-      <button class="nav-btn" data-view="inventory">📦 Inventory</button>
-      <button class="nav-btn" data-view="sales">📊 Sales & Reports</button>
-      <button class="nav-btn" data-view="backup">💾 Backup / Export</button>
-    </nav>
-    <div style="padding: 12px;">
-      <button id="btn-install" class="btn-install" style="display: none;">📲 Install App</button>
+      <nav class="nav-menu">
+        <button class="nav-btn active" data-view="billing">⚡ Billing POS</button>
+        <button class="nav-btn" data-view="inventory">📦 Products & Stock</button>
+        <button class="nav-btn" data-view="analytics">📊 Sales & Reports</button>
+        <button class="nav-btn" data-view="customers">👥 Udhaar Ledger</button>
+        <button class="nav-btn" data-view="backup">💾 Data Export / Backup</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <small class="version-tag">v3.0 • LocalStorage Ready</small>
+      </div>
+    </aside>
+
+    <!-- Main View -->
+    <main class="main-content" id="view-container"></main>
+  </div>
+
+  <!-- Camera Scanner Modal -->
+  <div id="scanner-modal" class="modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>📷 Scan Product Barcode / QR</h3>
+        <button class="modal-close" onclick="closeScanner()">×</button>
+      </div>
+      <div id="reader"></div>
+      <p class="scanner-hint">Point your camera at any product barcode or QR code</p>
     </div>
   </div>
 
-  <main class="main-content" id="view-container"></main>
+  <!-- UPI QR Payment Modal -->
+  <div id="upi-modal" class="modal">
+    <div class="modal-card text-center">
+      <div class="modal-header">
+        <h3>⚡ Scan & Pay via UPI</h3>
+        <button class="modal-close" onclick="closeUpiModal()">×</button>
+      </div>
+      <div id="upi-qrcode-container" class="upi-box"></div>
+      <h2 id="upi-modal-amount" class="upi-amount">₹0.00</h2>
+      <p class="text-muted">Scan using Google Pay, PhonePe, Paytm, or BHIM</p>
+      <button class="btn-primary" style="margin-top:15px;" onclick="confirmUpiPayment()">Mark Payment Received & Print</button>
+    </div>
+  </div>
 
   <div id="print-area"></div>
 

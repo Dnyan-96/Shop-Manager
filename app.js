@@ -1,63 +1,91 @@
-// Database Setup
-const db = new Dexie('BalajiSugandhalayDB');
-db.version(1).stores({
-  products: '++id, barcode, name, price, stock',
-  sales: '++id, invoiceNumber, date, total, payMode',
-  saleItems: '++id, saleId, productId, name, qty, price, subtotal'
-});
-
-db.on('ready', async () => {
-  const count = await db.products.count();
-  if (count === 0) {
-    await db.products.bulkAdd([
-      { barcode: '101', name: 'Balaji Chandan Agarbatti 250g', price: 130, stock: 45 },
-      { barcode: '102', name: 'Zed Black Rose Agarbatti 120g', price: 70, stock: 60 },
-      { barcode: '103', name: 'Pure Sandalwood Attar 10ml', price: 320, stock: 15 },
-      { barcode: '104', name: 'Shahi Gulab Dhoop Cones (30 pcs)', price: 90, stock: 35 },
-      { barcode: '105', name: 'Mangaldeep Camphor Tablets 100g', price: 85, stock: 50 }
-    ]);
+const StorageDB = {
+  getProducts() {
+    const data = localStorage.getItem('bs_products');
+    if (!data) {
+      const defaults = [
+        { id: 1, barcode: '101', name: 'Balaji Chandan Agarbatti 250g', category: 'Agarbatti', price: 130, stock: 45 },
+        { id: 2, barcode: '102', name: 'Zed Black Rose Agarbatti 120g', category: 'Agarbatti', price: 70, stock: 60 },
+        { id: 3, barcode: '103', name: 'Pure Sandalwood Attar 10ml', category: 'Attar', price: 320, stock: 15 },
+        { id: 4, barcode: '104', name: 'Shahi Gulab Dhoop Cones (30 pcs)', category: 'Dhoop', price: 90, stock: 35 },
+        { id: 5, barcode: '105', name: 'Mangaldeep Camphor Tablets 100g', category: 'Camphor', price: 85, stock: 50 },
+        { id: 6, barcode: '106', name: 'Pure Cow Ghee Diya Wicks (Pack of 50)', category: 'Pooja', price: 160, stock: 30 }
+      ];
+      localStorage.setItem('bs_products', JSON.stringify(defaults));
+      return defaults;
+    }
+    return JSON.parse(data);
+  },
+  saveProducts(products) {
+    localStorage.setItem('bs_products', JSON.stringify(products));
+  },
+  getSales() {
+    const data = localStorage.getItem('bs_sales');
+    return data ? JSON.parse(data) : [];
+  },
+  saveSales(sales) {
+    localStorage.setItem('bs_sales', JSON.stringify(sales));
+  },
+  getCustomers() {
+    const data = localStorage.getItem('bs_customers');
+    return data ? JSON.parse(data) : [];
+  },
+  saveCustomers(customers) {
+    localStorage.setItem('bs_customers', JSON.stringify(customers));
   }
-});
+};
 
 let cart = [];
 let currentView = 'billing';
+let selectedPayMode = 'CASH';
+let html5QrScanner = null;
 
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./service-worker.js').catch(() => {});
-}
-
-document.querySelectorAll('.nav-btn').forEach(btn => {
-  btn.addEventListener('click', (e) => {
-    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    const target = e.currentTarget;
-    target.classList.add('active');
-    currentView = target.dataset.view;
-    renderCurrentView();
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      const target = e.currentTarget;
+      target.classList.add('active');
+      currentView = target.dataset.view;
+      renderCurrentView();
+    });
   });
+
+  renderBilling();
 });
 
 function renderCurrentView() {
   if (currentView === 'billing') renderBilling();
   else if (currentView === 'inventory') renderInventory();
-  else if (currentView === 'sales') renderSales();
+  else if (currentView === 'analytics') renderAnalytics();
+  else if (currentView === 'customers') renderCustomers();
   else if (currentView === 'backup') renderBackup();
 }
 
+// BILLING VIEW
 function renderBilling() {
   const container = document.getElementById('view-container');
   container.innerHTML = `
     <div class="pos-screen">
       <div class="pos-left">
-        <div class="barcode-box">
-          <input type="text" id="barcode-input" class="barcode-input" placeholder="Scan Barcode (101, 102...) or Type Product Name + Enter" autofocus>
+        <div class="search-bar-row">
+          <input type="text" id="barcode-input" class="search-input" placeholder="Type name or scan barcode (e.g. 101, 102)..." autofocus>
+          <button class="btn-scan" onclick="openScanner()">📷 Scan Camera</button>
+        </div>
+        <div class="category-pills">
+          <button class="pill-btn active" onclick="filterItems('ALL', this)">All</button>
+          <button class="pill-btn" onclick="filterItems('Agarbatti', this)">Agarbatti</button>
+          <button class="pill-btn" onclick="filterItems('Attar', this)">Attar</button>
+          <button class="pill-btn" onclick="filterItems('Dhoop', this)">Dhoop</button>
+          <button class="pill-btn" onclick="filterItems('Camphor', this)">Camphor</button>
+          <button class="pill-btn" onclick="filterItems('Pooja', this)">Pooja Items</button>
         </div>
         <div class="table-wrapper">
           <table>
             <thead>
               <tr>
                 <th>Item</th>
-                <th width="80">Qty</th>
-                <th width="100">Price (₹)</th>
+                <th width="90">Qty</th>
+                <th width="100">Rate (₹)</th>
                 <th width="100">Total (₹)</th>
                 <th width="60"></th>
               </tr>
@@ -66,28 +94,34 @@ function renderBilling() {
           </table>
         </div>
       </div>
+
       <div class="pos-right">
         <div class="summary-card">
-          <h3>Bill Summary</h3>
+          <h3>Invoice Summary</h3>
           <div class="summary-line"><span>Total Items:</span><strong id="sum-items">0</strong></div>
-          <div class="summary-line"><span>Payment Mode:</span>
-            <select id="pay-mode" style="padding:4px 8px; border-radius:4px; border:1px solid #ccc;">
-              <option value="CASH">Cash</option>
-              <option value="UPI">UPI / QR</option>
-              <option value="CARD">Card</option>
-            </select>
+          <div class="pay-modes-grid">
+            <button class="pay-mode-btn active" onclick="setPayMode('CASH', this)">Cash</button>
+            <button class="pay-mode-btn" onclick="setPayMode('UPI', this)">UPI / QR</button>
+            <button class="pay-mode-btn" onclick="setPayMode('UDHAAR', this)">Udhaar</button>
           </div>
+          
+          <div id="udhaar-box" style="display:none; margin: 5px 0;">
+            <input type="text" id="cust-name-input" class="search-input" style="padding:8px; font-size:0.9rem;" placeholder="Customer Name & Phone...">
+          </div>
+
           <div class="summary-line total-line"><span>Net Payable:</span><strong id="sum-total">₹0.00</strong></div>
-          <button id="btn-checkout" class="btn-primary" onclick="checkout()" disabled>Print & Complete Sale</button>
+          
+          <button id="btn-checkout" class="btn-primary" onclick="proceedCheckout()" disabled>Complete Sale & Print</button>
+          <button id="btn-upi-show" class="btn-upi" onclick="showUpiQr()" style="display:none;">📱 Show Customer UPI QR</button>
         </div>
       </div>
     </div>
   `;
 
   const input = document.getElementById('barcode-input');
-  input.addEventListener('keydown', async (e) => {
+  input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && input.value.trim() !== '') {
-      await addItem(input.value.trim());
+      addItemByQuery(input.value.trim());
       input.value = '';
     }
   });
@@ -95,18 +129,60 @@ function renderBilling() {
   updateCartUI();
 }
 
-async function addItem(query) {
+function setPayMode(mode, el) {
+  selectedPayMode = mode;
+  document.querySelectorAll('.pay-mode-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+
+  const upiBtn = document.getElementById('btn-upi-show');
+  const udhaarBox = document.getElementById('udhaar-box');
+  
+  if (upiBtn) upiBtn.style.display = mode === 'UPI' && cart.length > 0 ? 'flex' : 'none';
+  if (udhaarBox) udhaarBox.style.display = mode === 'UDHAAR' ? 'block' : 'none';
+}
+
+function filterItems(cat, el) {
+  document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  const products = StorageDB.getProducts();
+  const items = cat === 'ALL' ? products : products.filter(p => p.category === cat);
+  
+  const rows = document.getElementById('cart-rows');
+  if (items.length > 0 && cart.length === 0) {
+    rows.innerHTML = items.map(p => `
+      <tr style="cursor:pointer;" onclick="addItemById(${p.id})">
+        <td><strong>+ ${p.name}</strong> <span class="badge ${p.stock <= 10 ? 'badge-danger':'badge-success'}">${p.stock} in stock</span></td>
+        <td>1</td>
+        <td>₹${p.price.toFixed(2)}</td>
+        <td>₹${p.price.toFixed(2)}</td>
+        <td><button class="pill-btn">+ Add</button></td>
+      </tr>
+    `).join('');
+  }
+}
+
+function addItemById(id) {
+  const products = StorageDB.getProducts();
+  const p = products.find(item => item.id === id);
+  if (p) addToCart(p);
+}
+
+function addItemByQuery(query) {
   const q = query.toLowerCase();
-  let p = await db.products.where('barcode').equals(query).first();
+  const products = StorageDB.getProducts();
+  let p = products.find(item => item.barcode === query);
   if (!p) {
-    p = await db.products.filter(item => item.name.toLowerCase().includes(q)).first();
+    p = products.find(item => item.name.toLowerCase().includes(q) || item.barcode.includes(q));
   }
 
-  if (!p) {
+  if (p) {
+    addToCart(p);
+  } else {
     alert('Product not found: ' + query);
-    return;
   }
+}
 
+function addToCart(p) {
   const existing = cart.find(i => i.id === p.id);
   if (existing) {
     existing.qty += 1;
@@ -121,15 +197,15 @@ function updateCartUI() {
   if (!tbody) return;
 
   if (cart.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#888; padding:30px;">Cart is empty. Scan barcode or search to add items.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8; padding:35px;">Scan camera barcode or type product name to add.</td></tr>`;
   } else {
     tbody.innerHTML = cart.map((i, idx) => `
       <tr>
         <td><strong>${i.name}</strong></td>
-        <td><input type="number" min="1" value="${i.qty}" style="width:50px; padding:4px; text-align:center;" onchange="updateQty(${idx}, this.value)"></td>
+        <td><input type="number" min="1" value="${i.qty}" style="width:55px; padding:6px; border:1px solid #cbd5e1; border-radius:6px; text-align:center;" onchange="updateCartQty(${idx}, this.value)"></td>
         <td>₹${i.price.toFixed(2)}</td>
         <td>₹${(i.price * i.qty).toFixed(2)}</td>
-        <td><button class="btn-sm btn-danger" onclick="removeItem(${idx})">×</button></td>
+        <td><button class="pill-btn" style="background:#fee2e2; color:#dc2626; border:none;" onclick="removeCartItem(${idx})">×</button></td>
       </tr>
     `).join('');
   }
@@ -140,59 +216,138 @@ function updateCartUI() {
   document.getElementById('sum-items').textContent = items;
   document.getElementById('sum-total').textContent = '₹' + total.toFixed(2);
   document.getElementById('btn-checkout').disabled = cart.length === 0;
+
+  const upiBtn = document.getElementById('btn-upi-show');
+  if (upiBtn) upiBtn.style.display = selectedPayMode === 'UPI' && cart.length > 0 ? 'flex' : 'none';
 }
 
-window.updateQty = (idx, val) => {
+window.updateCartQty = (idx, val) => {
   cart[idx].qty = Math.max(1, parseInt(val, 10) || 1);
   updateCartUI();
 };
 
-window.removeItem = (idx) => {
+window.removeCartItem = (idx) => {
   cart.splice(idx, 1);
   updateCartUI();
 };
 
-async function checkout() {
+// CAMERA SCANNER
+window.openScanner = () => {
+  const modal = document.getElementById('scanner-modal');
+  modal.classList.add('active');
+
+  html5QrScanner = new Html5Qrcode("reader");
+  html5QrScanner.start(
+    { facingMode: "environment" },
+    { fps: 15, qrbox: { width: 250, height: 250 } },
+    (decodedText) => {
+      closeScanner();
+      addItemByQuery(decodedText);
+    },
+    (err) => {}
+  ).catch(err => {
+    alert("Camera permission denied or camera not found: " + err);
+    closeScanner();
+  });
+};
+
+window.closeScanner = () => {
+  if (html5QrScanner) {
+    html5QrScanner.stop().catch(() => {}).then(() => {
+      html5QrScanner = null;
+    });
+  }
+  document.getElementById('scanner-modal').classList.remove('active');
+};
+
+// UPI QR GENERATOR
+window.showUpiQr = () => {
+  const total = cart.reduce((s, i) => s + (i.price * i.qty), 0);
+  if (total <= 0) return;
+
+  const modal = document.getElementById('upi-modal');
+  document.getElementById('upi-modal-amount').textContent = '₹' + total.toFixed(2);
+  
+  const container = document.getElementById('upi-qrcode-container');
+  container.innerHTML = '';
+  
+  const upiId = "balajisugandhalay@upi";
+  const upiUrl = `upi://pay?pa=${upiId}&pn=Balaji%20Sugandhalay&am=${total.toFixed(2)}&cu=INR&tn=StorePurchase`;
+
+  new QRCode(container, {
+    text: upiUrl,
+    width: 200,
+    height: 200,
+    colorDark : "#141821",
+    colorLight : "#ffffff",
+    correctLevel : QRCode.CorrectLevel.M
+  });
+
+  modal.classList.add('active');
+};
+
+window.closeUpiModal = () => {
+  document.getElementById('upi-modal').classList.remove('active');
+};
+
+window.confirmUpiPayment = () => {
+  closeUpiModal();
+  proceedCheckout();
+};
+
+function proceedCheckout() {
   if (cart.length === 0) return;
   const total = cart.reduce((s, i) => s + (i.price * i.qty), 0);
   const invNum = 'BS-' + Date.now().toString().slice(-6);
-  const payMode = document.getElementById('pay-mode').value;
+  const custName = document.getElementById('cust-name-input')?.value.trim() || 'Walk-in Retail';
 
-  await db.transaction('rw', db.sales, db.saleItems, db.products, async () => {
-    const saleId = await db.sales.add({
-      invoiceNumber: invNum,
-      date: new Date().toISOString(),
-      total,
-      payMode
-    });
+  const products = StorageDB.getProducts();
+  const sales = StorageDB.getSales();
+  const customers = StorageDB.getCustomers();
 
-    for (const item of cart) {
-      await db.saleItems.add({
-        saleId,
-        productId: item.id,
-        name: item.name,
-        qty: item.qty,
-        price: item.price,
-        subtotal: item.price * item.qty
-      });
+  const newSale = {
+    id: Date.now(),
+    invoiceNumber: invNum,
+    date: new Date().toISOString(),
+    total,
+    payMode: selectedPayMode,
+    customerName: custName,
+    items: [...cart]
+  };
 
-      const p = await db.products.get(item.id);
-      if (p) {
-        await db.products.update(item.id, { stock: Math.max(0, (p.stock || 0) - item.qty) });
-      }
+  sales.push(newSale);
+  StorageDB.saveSales(sales);
+
+  // Update Stock
+  cart.forEach(item => {
+    const p = products.find(prod => prod.id === item.id);
+    if (p) {
+      p.stock = Math.max(0, p.stock - item.qty);
     }
   });
+  StorageDB.saveProducts(products);
 
+  if (selectedPayMode === 'UDHAAR') {
+    customers.push({ id: Date.now(), name: custName, phone: '', balance: total });
+    StorageDB.saveCustomers(customers);
+  }
+
+  printReceipt(invNum, total, selectedPayMode);
+  cart = [];
+  updateCartUI();
+}
+
+function printReceipt(invNum, total, payMode) {
   const printArea = document.getElementById('print-area');
   printArea.innerHTML = `
     <div style="text-align:center; margin-bottom:8px;">
-      <h3 style="margin:0;">BALAJI SUGANDHALAY</h3>
+      <h3 style="margin:0; font-size:15px;">BALAJI SUGANDHALAY</h3>
       <p style="margin:2px 0; font-size:11px;">Pooja Samagri • Attar • Agarbatti</p>
       <hr style="border:none; border-top:1px dashed #000; margin:6px 0;">
       <div style="text-align:left; font-size:11px;">
         <div>Inv: ${invNum}</div>
         <div>Date: ${new Date().toLocaleString()}</div>
-        <div>Mode: ${payMode}</div>
+        <div>Pay Mode: ${payMode}</div>
       </div>
       <hr style="border:none; border-top:1px dashed #000; margin:6px 0;">
     </div>
@@ -207,26 +362,26 @@ async function checkout() {
   `;
 
   window.print();
-  cart = [];
-  updateCartUI();
 }
 
-async function renderInventory() {
-  const products = await db.products.toArray();
+// INVENTORY VIEW
+function renderInventory() {
+  const products = StorageDB.getProducts();
   const container = document.getElementById('view-container');
   container.innerHTML = `
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-        <h2>Product Inventory</h2>
-        <button class="btn-primary" style="width:auto;" onclick="addProduct()">+ Add Item</button>
+        <h2>Product Catalog & Stock</h2>
+        <button class="btn-primary" style="width:auto; padding:8px 16px;" onclick="addNewProduct()">+ Add Product</button>
       </div>
       <table>
         <thead>
           <tr>
             <th>Barcode</th>
-            <th>Name</th>
+            <th>Item Name</th>
+            <th>Category</th>
             <th>Price</th>
-            <th>Stock</th>
+            <th>Stock Status</th>
             <th>Action</th>
           </tr>
         </thead>
@@ -235,9 +390,10 @@ async function renderInventory() {
             <tr>
               <td><code>${p.barcode}</code></td>
               <td><strong>${p.name}</strong></td>
+              <td>${p.category || 'General'}</td>
               <td>₹${p.price.toFixed(2)}</td>
-              <td><strong>${p.stock}</strong></td>
-              <td><button class="btn-sm btn-secondary" onclick="editStock(${p.id})">Adjust Stock</button></td>
+              <td><span class="badge ${p.stock <= 10 ? 'badge-danger':'badge-success'}">${p.stock} units</span></td>
+              <td><button class="pill-btn" onclick="adjustProductStock(${p.id})">Adjust Stock</button></td>
             </tr>
           `).join('')}
         </tbody>
@@ -246,28 +402,38 @@ async function renderInventory() {
   `;
 }
 
-window.addProduct = async () => {
+window.addNewProduct = () => {
   const name = prompt('Product Name:');
   if (!name) return;
-  const barcode = prompt('Barcode:') || Date.now().toString().slice(-6);
+  const barcode = prompt('Barcode / Code:') || Date.now().toString().slice(-6);
+  const category = prompt('Category (Agarbatti, Attar, Dhoop, Camphor, Pooja):') || 'General';
   const price = parseFloat(prompt('Selling Price (₹):') || '0');
   const stock = parseInt(prompt('Stock Quantity:') || '0', 10);
-  await db.products.add({ barcode, name, price, stock });
+
+  const products = StorageDB.getProducts();
+  products.push({ id: Date.now(), barcode, name, category, price, stock });
+  StorageDB.saveProducts(products);
   renderInventory();
 };
 
-window.editStock = async (id) => {
-  const p = await db.products.get(id);
-  const n = prompt(`New stock for ${p.name}:`, p.stock);
+window.adjustProductStock = (id) => {
+  const products = StorageDB.getProducts();
+  const p = products.find(item => item.id === id);
+  if (!p) return;
+  const n = prompt(`Update stock quantity for ${p.name}:`, p.stock);
   if (n !== null) {
-    await db.products.update(id, { stock: parseInt(n, 10) || 0 });
+    p.stock = parseInt(n, 10) || 0;
+    StorageDB.saveProducts(products);
     renderInventory();
   }
 };
 
-async function renderSales() {
-  const sales = (await db.sales.toArray()).reverse();
-  const totalRev = sales.reduce((s, i) => s + i.total, 0);
+// ANALYTICS VIEW
+function renderAnalytics() {
+  const sales = StorageDB.getSales().reverse();
+  const totalRev = sales.reduce((s, i) => s + (i.total || 0), 0);
+  const products = StorageDB.getProducts();
+  const lowStock = products.filter(p => p.stock <= 10);
 
   const container = document.getElementById('view-container');
   container.innerHTML = `
@@ -277,18 +443,24 @@ async function renderSales() {
         <div class="val">₹${totalRev.toFixed(2)}</div>
       </div>
       <div class="stat-box">
-        <div class="title">Total Bills</div>
+        <div class="title">Total Invoices</div>
         <div class="val">${sales.length}</div>
       </div>
+      <div class="stat-box">
+        <div class="title">Low Stock Alerts</div>
+        <div class="val" style="color:var(--danger);">${lowStock.length}</div>
+      </div>
     </div>
+
     <div class="card">
-      <h3>Recent Sales</h3>
+      <h3>Recent Completed Invoices</h3>
       <table>
         <thead>
           <tr>
             <th>Invoice</th>
-            <th>Date</th>
-            <th>Mode</th>
+            <th>Date & Time</th>
+            <th>Customer</th>
+            <th>Payment</th>
             <th>Amount</th>
           </tr>
         </thead>
@@ -297,32 +469,73 @@ async function renderSales() {
             <tr>
               <td><strong>${s.invoiceNumber}</strong></td>
               <td>${new Date(s.date).toLocaleString()}</td>
-              <td>${s.payMode}</td>
+              <td>${s.customerName || 'Walk-in'}</td>
+              <td><span class="badge ${s.payMode==='UPI'?'badge-success':'badge-danger'}">${s.payMode}</span></td>
               <td>₹${s.total.toFixed(2)}</td>
             </tr>
-          `).join('') || '<tr><td colspan="4">No sales recorded yet.</td></tr>'}
+          `).join('') || '<tr><td colspan="5">No completed sales yet.</td></tr>'}
         </tbody>
       </table>
     </div>
   `;
 }
 
+// UDHAAR LEDGER VIEW
+function renderCustomers() {
+  const custs = StorageDB.getCustomers();
+  const container = document.getElementById('view-container');
+  container.innerHTML = `
+    <div class="card">
+      <h2>Udhaar (Store Credit) Ledger</h2>
+      <p class="text-muted" style="margin-bottom:15px;">Track pending payments from regular customers.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Customer Name</th>
+            <th>Outstanding Balance</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${custs.map((c, idx) => `
+            <tr>
+              <td><strong>${c.name}</strong></td>
+              <td style="color:var(--danger); font-weight:700;">₹${c.balance.toFixed(2)}</td>
+              <td><button class="pill-btn" onclick="clearUdhaar(${c.id})">Clear Balance</button></td>
+            </tr>
+          `).join('') || '<tr><td colspan="3">No pending credit accounts.</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+window.clearUdhaar = (id) => {
+  if (confirm('Mark this customer balance as cleared / received?')) {
+    let custs = StorageDB.getCustomers();
+    custs = custs.filter(c => c.id !== id);
+    StorageDB.saveCustomers(custs);
+    renderCustomers();
+  }
+};
+
+// BACKUP VIEW
 function renderBackup() {
   const container = document.getElementById('view-container');
   container.innerHTML = `
     <div class="card">
       <h2>Backup & Data Management</h2>
-      <p style="margin:10px 0; color:#666;">Export all your products and sales history as a JSON backup file to keep your local data safe.</p>
-      <button class="btn-primary" style="width:auto;" onclick="downloadBackup()">Download JSON Backup</button>
+      <p style="margin:10px 0; color:var(--muted);">Download your entire local store database (products, sales, customers) as a JSON file to prevent data loss.</p>
+      <button class="btn-primary" style="width:auto; padding:10px 20px;" onclick="downloadBackup()">Download JSON Backup</button>
     </div>
   `;
 }
 
-window.downloadBackup = async () => {
+window.downloadBackup = () => {
   const data = {
-    products: await db.products.toArray(),
-    sales: await db.sales.toArray(),
-    saleItems: await db.saleItems.toArray()
+    products: StorageDB.getProducts(),
+    sales: StorageDB.getSales(),
+    customers: StorageDB.getCustomers()
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
@@ -330,33 +543,3 @@ window.downloadBackup = async () => {
   a.download = `BalajiSugandhalay_Backup_${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
 };
-
-renderBilling();
-
-// PWA Custom In-App Install Prompt Handler
-let deferredPrompt = null;
-const installBtn = document.getElementById('btn-install');
-
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  if (installBtn) {
-    installBtn.style.display = 'block';
-  }
-});
-
-if (installBtn) {
-  installBtn.addEventListener('click', async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log('[PWA] User choice outcome:', outcome);
-    deferredPrompt = null;
-    installBtn.style.display = 'none';
-  });
-}
-
-window.addEventListener('appinstalled', () => {
-  console.log('[PWA] App successfully installed on device.');
-  if (installBtn) installBtn.style.display = 'none';
-});
