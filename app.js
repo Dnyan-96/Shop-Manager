@@ -332,3 +332,31 @@ window.downloadBackup = async () => {
 };
 
 renderBilling();
+
+// PWA Custom In-App Install Prompt Handler
+let deferredPrompt = null;
+const installBtn = document.getElementById('btn-install');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  if (installBtn) {
+    installBtn.style.display = 'block';
+  }
+});
+
+if (installBtn) {
+  installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log('[PWA] User choice outcome:', outcome);
+    deferredPrompt = null;
+    installBtn.style.display = 'none';
+  });
+}
+
+window.addEventListener('appinstalled', () => {
+  console.log('[PWA] App successfully installed on device.');
+  if (installBtn) installBtn.style.display = 'none';
+});

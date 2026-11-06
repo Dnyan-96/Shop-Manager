@@ -5,7 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Balaji Sugandhalay - POS</title>
   
+  <!-- PWA Essential Meta Tags -->
   <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#8b1538">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BalajiPOS">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  
   <link rel="stylesheet" href="./style.css">
   
   <!-- Dexie IndexedDB -->
@@ -14,7 +22,7 @@
 <body>
   <div class="sidebar">
     <div class="brand">
-      <img src="./logo.png" alt="Balaji Sugandhalay">
+      <img src="./logo.png" alt="Balaji Sugandhalay Logo">
       <div>
         <h2>Balaji Sugandhalay</h2>
         <span>Retail POS</span>
@@ -26,6 +34,9 @@
       <button class="nav-btn" data-view="sales">📊 Sales & Reports</button>
       <button class="nav-btn" data-view="backup">💾 Backup / Export</button>
     </nav>
+    <div style="padding: 12px;">
+      <button id="btn-install" class="btn-install" style="display: none;">📲 Install App</button>
+    </div>
   </div>
 
   <main class="main-content" id="view-container"></main>
