@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Balaji Sugandhalay - POS</title>
+  
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./style.css">
+  
+  <!-- Dexie IndexedDB -->
+  <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.4/dist/dexie.min.js"></script>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="brand">
+      <img src="./logo.png" alt="Balaji Sugandhalay">
+      <div>
+        <h2>Balaji Sugandhalay</h2>
+        <span>Retail POS</span>
+      </div>
+    </div>
+    <nav class="nav-menu">
+      <button class="nav-btn active" data-view="billing">⚡ Billing / POS</button>
+      <button class="nav-btn" data-view="inventory">📦 Inventory</button>
+      <button class="nav-btn" data-view="sales">📊 Sales & Reports</button>
+      <button class="nav-btn" data-view="backup">💾 Backup / Export</button>
+    </nav>
+  </div>
+
+  <main class="main-content" id="view-container"></main>
+
+  <div id="print-area"></div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
