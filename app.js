@@ -1,55 +1,45 @@
-// Database Setup
-const db = new Dexie('BalajiSugandhalayDB');
-db.version(2).stores({
-  products: '++id, barcode, name, category, price, stock',
-  sales: '++id, invoiceNumber, date, total, payMode, customerName',
-  saleItems: '++id, saleId, productId, name, qty, price, subtotal',
-  customers: '++id, name, phone, balance'
-});
-
-db.on('ready', async () => {
-  const count = await db.products.count();
-  if (count === 0) {
-    await db.products.bulkAdd([
-      { barcode: '101', name: 'Balaji Chandan Agarbatti 250g', category: 'Agarbatti', price: 130, stock: 45 },
-      { barcode: '102', name: 'Zed Black Rose Agarbatti 120g', category: 'Agarbatti', price: 70, stock: 60 },
-      { barcode: '103', name: 'Pure Sandalwood Attar 10ml', category: 'Attar', price: 320, stock: 15 },
-      { barcode: '104', name: 'Shahi Gulab Dhoop Cones (30 pcs)', category: 'Dhoop', price: 90, stock: 35 },
-      { barcode: '105', name: 'Mangaldeep Camphor Tablets 100g', category: 'Camphor', price: 85, stock: 50 },
-      { barcode: '106', name: 'Pure Cow Ghee Diya Wicks (Pack of 50)', category: 'Pooja', price: 160, stock: 30 }
-    ]);
+const StorageDB = {
+  getProducts() {
+    const data = localStorage.getItem('bs_products');
+    if (!data) {
+      const defaults = [
+        { id: 1, barcode: '101', name: 'Balaji Chandan Agarbatti 250g', category: 'Agarbatti', price: 130, stock: 45 },
+        { id: 2, barcode: '102', name: 'Zed Black Rose Agarbatti 120g', category: 'Agarbatti', price: 70, stock: 60 },
+        { id: 3, barcode: '103', name: 'Pure Sandalwood Attar 10ml', category: 'Attar', price: 320, stock: 15 },
+        { id: 4, barcode: '104', name: 'Shahi Gulab Dhoop Cones (30 pcs)', category: 'Dhoop', price: 90, stock: 35 },
+        { id: 5, barcode: '105', name: 'Mangaldeep Camphor Tablets 100g', category: 'Camphor', price: 85, stock: 50 },
+        { id: 6, barcode: '106', name: 'Pure Cow Ghee Diya Wicks (Pack of 50)', category: 'Pooja', price: 160, stock: 30 }
+      ];
+      localStorage.setItem('bs_products', JSON.stringify(defaults));
+      return defaults;
+    }
+    return JSON.parse(data);
+  },
+  saveProducts(products) {
+    localStorage.setItem('bs_products', JSON.stringify(products));
+  },
+  getSales() {
+    const data = localStorage.getItem('bs_sales');
+    return data ? JSON.parse(data) : [];
+  },
+  saveSales(sales) {
+    localStorage.setItem('bs_sales', JSON.stringify(sales));
+  },
+  getCustomers() {
+    const data = localStorage.getItem('bs_customers');
+    return data ? JSON.parse(data) : [];
+  },
+  saveCustomers(customers) {
+    localStorage.setItem('bs_customers', JSON.stringify(customers));
   }
-});
+};
 
 let cart = [];
 let currentView = 'billing';
 let selectedPayMode = 'CASH';
 let html5QrScanner = null;
-let deferredPrompt = null;
-
-// PWA Install Prompt Listener
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  const btn = document.getElementById('btn-install');
-  if (btn) btn.style.display = 'flex';
-});
 
 document.addEventListener('DOMContentLoaded', () => {
-  const btn = document.getElementById('btn-install');
-  if (btn) {
-    btn.addEventListener('click', async () => {
-      if (!deferredPrompt) return;
-      deferredPrompt.prompt();
-      const choice = await deferredPrompt.userChoice;
-      if (choice.outcome === 'accepted') {
-        btn.style.display = 'none';
-      }
-      deferredPrompt = null;
-    });
-  }
-
-  // Navigation
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -109,9 +99,6 @@ function renderBilling() {
         <div class="summary-card">
           <h3>Invoice Summary</h3>
           <div class="summary-line"><span>Total Items:</span><strong id="sum-items">0</strong></div>
-          <div class="summary-line">
-            <span>Payment Mode:</span>
-          </div>
           <div class="pay-modes-grid">
             <button class="pay-mode-btn active" onclick="setPayMode('CASH', this)">Cash</button>
             <button class="pay-mode-btn" onclick="setPayMode('UPI', this)">UPI / QR</button>
@@ -119,7 +106,7 @@ function renderBilling() {
           </div>
           
           <div id="udhaar-box" style="display:none; margin: 5px 0;">
-            <input type="text" id="cust-name-input" class="search-input" style="padding:8px;" placeholder="Customer Name & Phone...">
+            <input type="text" id="cust-name-input" class="search-input" style="padding:8px; font-size:0.9rem;" placeholder="Customer Name & Phone...">
           </div>
 
           <div class="summary-line total-line"><span>Net Payable:</span><strong id="sum-total">₹0.00</strong></div>
@@ -132,9 +119,9 @@ function renderBilling() {
   `;
 
   const input = document.getElementById('barcode-input');
-  input.addEventListener('keydown', async (e) => {
+  input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && input.value.trim() !== '') {
-      await addItemByQuery(input.value.trim());
+      addItemByQuery(input.value.trim());
       input.value = '';
     }
   });
@@ -154,12 +141,12 @@ function setPayMode(mode, el) {
   if (udhaarBox) udhaarBox.style.display = mode === 'UDHAAR' ? 'block' : 'none';
 }
 
-async function filterItems(cat, el) {
+function filterItems(cat, el) {
   document.querySelectorAll('.pill-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
-  const items = cat === 'ALL' ? await db.products.toArray() : await db.products.where('category').equals(cat).toArray();
+  const products = StorageDB.getProducts();
+  const items = cat === 'ALL' ? products : products.filter(p => p.category === cat);
   
-  // Show quick add palette
   const rows = document.getElementById('cart-rows');
   if (items.length > 0 && cart.length === 0) {
     rows.innerHTML = items.map(p => `
@@ -174,16 +161,18 @@ async function filterItems(cat, el) {
   }
 }
 
-async function addItemById(id) {
-  const p = await db.products.get(id);
+function addItemById(id) {
+  const products = StorageDB.getProducts();
+  const p = products.find(item => item.id === id);
   if (p) addToCart(p);
 }
 
-async function addItemByQuery(query) {
+function addItemByQuery(query) {
   const q = query.toLowerCase();
-  let p = await db.products.where('barcode').equals(query).first();
+  const products = StorageDB.getProducts();
+  let p = products.find(item => item.barcode === query);
   if (!p) {
-    p = await db.products.filter(item => item.name.toLowerCase().includes(q) || item.barcode.includes(q)).first();
+    p = products.find(item => item.name.toLowerCase().includes(q) || item.barcode.includes(q));
   }
 
   if (p) {
@@ -251,14 +240,11 @@ window.openScanner = () => {
   html5QrScanner.start(
     { facingMode: "environment" },
     { fps: 15, qrbox: { width: 250, height: 250 } },
-    async (decodedText) => {
-      // Barcode / QR Detected
+    (decodedText) => {
       closeScanner();
-      await addItemByQuery(decodedText);
+      addItemByQuery(decodedText);
     },
-    (errorMessage) => {
-      // Parsing
-    }
+    (err) => {}
   ).catch(err => {
     alert("Camera permission denied or camera not found: " + err);
     closeScanner();
@@ -285,7 +271,6 @@ window.showUpiQr = () => {
   const container = document.getElementById('upi-qrcode-container');
   container.innerHTML = '';
   
-  // Real standard UPI Payment Link format
   const upiId = "balajisugandhalay@upi";
   const upiUrl = `upi://pay?pa=${upiId}&pn=Balaji%20Sugandhalay&am=${total.toFixed(2)}&cu=INR&tn=StorePurchase`;
 
@@ -310,41 +295,42 @@ window.confirmUpiPayment = () => {
   proceedCheckout();
 };
 
-async function proceedCheckout() {
+function proceedCheckout() {
   if (cart.length === 0) return;
   const total = cart.reduce((s, i) => s + (i.price * i.qty), 0);
   const invNum = 'BS-' + Date.now().toString().slice(-6);
   const custName = document.getElementById('cust-name-input')?.value.trim() || 'Walk-in Retail';
 
-  await db.transaction('rw', db.sales, db.saleItems, db.products, db.customers, async () => {
-    const saleId = await db.sales.add({
-      invoiceNumber: invNum,
-      date: new Date().toISOString(),
-      total,
-      payMode: selectedPayMode,
-      customerName: custName
-    });
+  const products = StorageDB.getProducts();
+  const sales = StorageDB.getSales();
+  const customers = StorageDB.getCustomers();
 
-    for (const item of cart) {
-      await db.saleItems.add({
-        saleId,
-        productId: item.id,
-        name: item.name,
-        qty: item.qty,
-        price: item.price,
-        subtotal: item.price * item.qty
-      });
+  const newSale = {
+    id: Date.now(),
+    invoiceNumber: invNum,
+    date: new Date().toISOString(),
+    total,
+    payMode: selectedPayMode,
+    customerName: custName,
+    items: [...cart]
+  };
 
-      const p = await db.products.get(item.id);
-      if (p) {
-        await db.products.update(item.id, { stock: Math.max(0, (p.stock || 0) - item.qty) });
-      }
-    }
+  sales.push(newSale);
+  StorageDB.saveSales(sales);
 
-    if (selectedPayMode === 'UDHAAR') {
-      await db.customers.add({ name: custName, phone: '', balance: total });
+  // Update Stock
+  cart.forEach(item => {
+    const p = products.find(prod => prod.id === item.id);
+    if (p) {
+      p.stock = Math.max(0, p.stock - item.qty);
     }
   });
+  StorageDB.saveProducts(products);
+
+  if (selectedPayMode === 'UDHAAR') {
+    customers.push({ id: Date.now(), name: custName, phone: '', balance: total });
+    StorageDB.saveCustomers(customers);
+  }
 
   printReceipt(invNum, total, selectedPayMode);
   cart = [];
@@ -379,8 +365,8 @@ function printReceipt(invNum, total, payMode) {
 }
 
 // INVENTORY VIEW
-async function renderInventory() {
-  const products = await db.products.toArray();
+function renderInventory() {
+  const products = StorageDB.getProducts();
   const container = document.getElementById('view-container');
   container.innerHTML = `
     <div class="card">
@@ -416,31 +402,38 @@ async function renderInventory() {
   `;
 }
 
-window.addNewProduct = async () => {
+window.addNewProduct = () => {
   const name = prompt('Product Name:');
   if (!name) return;
   const barcode = prompt('Barcode / Code:') || Date.now().toString().slice(-6);
   const category = prompt('Category (Agarbatti, Attar, Dhoop, Camphor, Pooja):') || 'General';
   const price = parseFloat(prompt('Selling Price (₹):') || '0');
   const stock = parseInt(prompt('Stock Quantity:') || '0', 10);
-  await db.products.add({ barcode, name, category, price, stock });
+
+  const products = StorageDB.getProducts();
+  products.push({ id: Date.now(), barcode, name, category, price, stock });
+  StorageDB.saveProducts(products);
   renderInventory();
 };
 
-window.adjustProductStock = async (id) => {
-  const p = await db.products.get(id);
+window.adjustProductStock = (id) => {
+  const products = StorageDB.getProducts();
+  const p = products.find(item => item.id === id);
+  if (!p) return;
   const n = prompt(`Update stock quantity for ${p.name}:`, p.stock);
   if (n !== null) {
-    await db.products.update(id, { stock: parseInt(n, 10) || 0 });
+    p.stock = parseInt(n, 10) || 0;
+    StorageDB.saveProducts(products);
     renderInventory();
   }
 };
 
 // ANALYTICS VIEW
-async function renderAnalytics() {
-  const sales = (await db.sales.toArray()).reverse();
+function renderAnalytics() {
+  const sales = StorageDB.getSales().reverse();
   const totalRev = sales.reduce((s, i) => s + (i.total || 0), 0);
-  const lowStock = await db.products.filter(p => p.stock <= 10).toArray();
+  const products = StorageDB.getProducts();
+  const lowStock = products.filter(p => p.stock <= 10);
 
   const container = document.getElementById('view-container');
   container.innerHTML = `
@@ -488,8 +481,8 @@ async function renderAnalytics() {
 }
 
 // UDHAAR LEDGER VIEW
-async function renderCustomers() {
-  const custs = await db.customers.toArray();
+function renderCustomers() {
+  const custs = StorageDB.getCustomers();
   const container = document.getElementById('view-container');
   container.innerHTML = `
     <div class="card">
@@ -517,9 +510,11 @@ async function renderCustomers() {
   `;
 }
 
-window.clearUdhaar = async (id) => {
+window.clearUdhaar = (id) => {
   if (confirm('Mark this customer balance as cleared / received?')) {
-    await db.customers.delete(id);
+    let custs = StorageDB.getCustomers();
+    custs = custs.filter(c => c.id !== id);
+    StorageDB.saveCustomers(custs);
     renderCustomers();
   }
 };
@@ -530,18 +525,17 @@ function renderBackup() {
   container.innerHTML = `
     <div class="card">
       <h2>Backup & Data Management</h2>
-      <p style="margin:10px 0; color:var(--muted);">Download your entire local store database (products, sales, customers) to prevent data loss.</p>
+      <p style="margin:10px 0; color:var(--muted);">Download your entire local store database (products, sales, customers) as a JSON file to prevent data loss.</p>
       <button class="btn-primary" style="width:auto; padding:10px 20px;" onclick="downloadBackup()">Download JSON Backup</button>
     </div>
   `;
 }
 
-window.downloadBackup = async () => {
+window.downloadBackup = () => {
   const data = {
-    products: await db.products.toArray(),
-    sales: await db.sales.toArray(),
-    saleItems: await db.saleItems.toArray(),
-    customers: await db.customers.toArray()
+    products: StorageDB.getProducts(),
+    sales: StorageDB.getSales(),
+    customers: StorageDB.getCustomers()
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');

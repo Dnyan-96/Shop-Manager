@@ -32,7 +32,6 @@ body {
   width: 100vw;
 }
 
-/* Sidebar */
 .sidebar {
   width: 260px;
   background: #141821;
@@ -51,11 +50,17 @@ body {
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
-.brand-logo {
+.brand-badge {
   width: 48px;
   height: 48px;
   border-radius: 10px;
-  object-fit: cover;
+  background: linear-gradient(135deg, var(--gold), #b8860b);
+  color: #141821;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: bold;
   border: 2px solid var(--gold);
 }
 
@@ -112,26 +117,7 @@ body {
 .sidebar-bottom {
   padding: 14px;
   border-top: 1px solid rgba(255,255,255,0.08);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
   text-align: center;
-}
-
-.btn-install {
-  background: linear-gradient(135deg, #10b981, #059669);
-  color: #fff;
-  font-weight: 700;
-  border: none;
-  border-radius: var(--radius);
-  padding: 12px;
-  cursor: pointer;
-  font-size: 0.95rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
 }
 
 .version-tag {
@@ -139,7 +125,6 @@ body {
   font-size: 0.75rem;
 }
 
-/* Main Content */
 .main-content {
   flex: 1;
   padding: 22px;
@@ -155,7 +140,6 @@ body {
   margin-bottom: 20px;
 }
 
-/* POS Layout */
 .pos-screen {
   display: grid;
   grid-template-columns: 1fr 360px;
@@ -211,7 +195,6 @@ body {
 
 .btn-scan:hover { background: #0f172a; }
 
-/* Quick Category Badges */
 .category-pills {
   display: flex;
   gap: 8px;
@@ -265,7 +248,6 @@ th {
   text-transform: uppercase;
 }
 
-/* POS Right */
 .pos-right {
   display: flex;
   flex-direction: column;
@@ -368,7 +350,6 @@ th {
   gap: 8px;
 }
 
-/* Modals */
 .modal {
   display: none;
   position: fixed;
@@ -435,7 +416,6 @@ th {
 .text-center { text-align: center; }
 .text-muted { color: var(--muted); font-size: 0.85rem; }
 
-/* Dashboard Cards */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -474,7 +454,6 @@ th {
 .badge-danger { background: #fee2e2; color: #dc2626; }
 .badge-success { background: #d1fae5; color: #059669; }
 
-/* Responsive */
 @media (max-width: 860px) {
   body { height: auto; overflow-y: auto; }
   .app-layout { flex-direction: column; }

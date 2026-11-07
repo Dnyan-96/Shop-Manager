@@ -3,40 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Balaji Sugandhalay - POS & Retail</title>
-  
+  <title>Balaji Sugandhalay - Shop Manager POS</title>
   <meta name="theme-color" content="#8b1538">
   <link rel="stylesheet" href="./style.css">
   
-  <!-- HTML5 QR Code & Barcode Camera Scanner -->
+  <!-- HTML5 QR Code Scanner -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-  <!-- QRCode Generator for Dynamic UPI Payment QRs -->
+  <!-- QRCode Generator -->
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </head>
 <body>
   <div class="app-layout">
-    <!-- Sidebar -->
+    <!-- Sidebar Navigation -->
     <aside class="sidebar">
       <div class="brand">
-        <img src="./logo.png" alt="Balaji Sugandhalay Logo" class="brand-logo" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'48\' height=\'48\' viewBox=\'0 0 24 24\'><rect width=\'24\' height=\'24\' fill=\'%238b1538\'/><text x=\'50%\' y=\'55%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23d4a373\' font-size=\'12\' font-weight=\'bold\'>BS</text></svg>';">
+        <div class="brand-badge">ॐ</div>
         <div class="brand-text">
           <h2>Balaji Sugandhalay</h2>
-          <span class="tagline">Pooja Samagri & Perfumes</span>
+          <span class="tagline">Shop Manager POS</span>
         </div>
       </div>
       <nav class="nav-menu">
         <button class="nav-btn active" data-view="billing">⚡ Billing / POS</button>
-        <button class="nav-btn" data-view="inventory">📦 Products & Stock</button>
+        <button class="nav-btn" data-view="inventory">📦 Inventory & Stock</button>
         <button class="nav-btn" data-view="analytics">📊 Sales & Reports</button>
         <button class="nav-btn" data-view="customers">👥 Udhaar Ledger</button>
-        <button class="nav-btn" data-view="backup">💾 Data Export / Backup</button>
+        <button class="nav-btn" data-view="backup">💾 Backup & Restore</button>
       </nav>
       <div class="sidebar-bottom">
-        <small class="version-tag">v3.5 • LocalStorage Ready</small>
+        <small class="version-tag">v4.0 • LocalStorage Edition</small>
       </div>
     </aside>
 
-    <!-- Main View -->
+    <!-- Main View Container -->
     <main class="main-content" id="view-container"></main>
   </div>
 
@@ -44,29 +43,30 @@
   <div id="scanner-modal" class="modal">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>📷 Scan Product Barcode or QR</h3>
+        <h3>📷 Scan Barcode / QR</h3>
         <button class="modal-close" onclick="closeScanner()">×</button>
       </div>
       <div id="reader"></div>
-      <p class="scanner-hint">Point your camera at any product barcode or QR code</p>
-      <button class="btn-secondary" style="width:100%; margin-top:15px;" onclick="closeScanner()">Cancel / Close</button>
+      <p class="scanner-hint">Point your camera at the item's barcode or QR code.</p>
+      <button class="btn-secondary" style="width:100%; margin-top:15px;" onclick="closeScanner()">Close Scanner</button>
     </div>
   </div>
 
-  <!-- UPI QR Payment Modal -->
+  <!-- UPI QR Code Modal -->
   <div id="upi-modal" class="modal">
     <div class="modal-card text-center">
       <div class="modal-header">
-        <h3>⚡ Scan & Pay via UPI QR</h3>
+        <h3>⚡ Customer UPI Payment</h3>
         <button class="modal-close" onclick="closeUpiModal()">×</button>
       </div>
       <div id="upi-qrcode-container" class="upi-box"></div>
       <h2 id="upi-modal-amount" class="upi-amount">₹0.00</h2>
-      <p class="text-muted">Scan using Google Pay, PhonePe, Paytm, or BHIM</p>
-      <button class="btn-primary" style="margin-top:15px;" onclick="confirmUpiPayment()">Mark Payment Received & Print</button>
+      <p class="text-muted">Scan with Google Pay, PhonePe, Paytm or BHIM</p>
+      <button class="btn-primary" style="margin-top:15px;" onclick="confirmUpiPayment()">Payment Received & Print</button>
     </div>
   </div>
 
+  <!-- Thermal Print Template -->
   <div id="print-area"></div>
 
   <script src="./app.js"></script>
