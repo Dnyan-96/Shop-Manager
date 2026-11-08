@@ -38,8 +38,30 @@ let cart = [];
 let currentView = 'billing';
 let selectedPayMode = 'CASH';
 let html5QrScanner = null;
+let deferredPrompt = null;
+
+// PWA Install Prompt Support
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = document.getElementById('btn-install');
+  if (btn) btn.style.display = 'flex';
+});
 
 document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('btn-install');
+  if (btn) {
+    btn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      if (choice.outcome === 'accepted') {
+        btn.style.display = 'none';
+      }
+      deferredPrompt = null;
+    });
+  }
+
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
