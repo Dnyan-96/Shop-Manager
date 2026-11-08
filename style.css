@@ -420,10 +420,11 @@ th {
 }
 
 .upi-amount {
-  font-size: 2rem;
+  font-size: 2.2rem;
   color: var(--primary);
   font-weight: 800;
   margin-bottom: 4px;
+  text-align: center;
 }
 
 .text-center { text-align: center; }

@@ -39,8 +39,8 @@ let currentView = 'billing';
 let selectedPayMode = 'CASH';
 let html5QrScanner = null;
 let deferredPrompt = null;
+let activeScanTarget = null;
 
-// PWA Install Prompt Support
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
@@ -90,8 +90,8 @@ function renderBilling() {
     <div class="pos-screen">
       <div class="pos-left">
         <div class="search-bar-row">
-          <input type="text" id="barcode-input" class="search-input" placeholder="Type name or scan barcode (e.g. 101, 102)..." autofocus>
-          <button class="btn-scan" onclick="openScanner()">📷 Scan Camera</button>
+          <input type="text" id="barcode-input" class="search-input" placeholder="Type name or scan barcode..." autofocus>
+          <button class="btn-scan" onclick="openScanner('pos')">📷 Scan</button>
         </div>
         <div class="category-pills">
           <button class="pill-btn active" onclick="filterItems('ALL', this)">All</button>
@@ -253,8 +253,9 @@ window.removeCartItem = (idx) => {
   updateCartUI();
 };
 
-// CAMERA SCANNER
-window.openScanner = () => {
+// CAMERA SCANNER WITH TARGET SUPPORT
+window.openScanner = (target = 'pos') => {
+  activeScanTarget = target;
   const modal = document.getElementById('scanner-modal');
   modal.classList.add('active');
 
@@ -264,7 +265,12 @@ window.openScanner = () => {
     { fps: 15, qrbox: { width: 250, height: 250 } },
     (decodedText) => {
       closeScanner();
-      addItemByQuery(decodedText);
+      if (activeScanTarget === 'inventory') {
+        const barcodeField = document.getElementById('new-prod-barcode');
+        if (barcodeField) barcodeField.value = decodedText;
+      } else {
+        addItemByQuery(decodedText);
+      }
     },
     (err) => {}
   ).catch(err => {
@@ -340,7 +346,6 @@ function proceedCheckout() {
   sales.push(newSale);
   StorageDB.saveSales(sales);
 
-  // Update Stock
   cart.forEach(item => {
     const p = products.find(prod => prod.id === item.id);
     if (p) {
@@ -386,55 +391,115 @@ function printReceipt(invNum, total, payMode) {
   window.print();
 }
 
-// INVENTORY VIEW
+// INVENTORY VIEW WITH SCAN & ADD OPTION
 function renderInventory() {
   const products = StorageDB.getProducts();
   const container = document.getElementById('view-container');
   container.innerHTML = `
     <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
         <h2>Product Catalog & Stock</h2>
-        <button class="btn-primary" style="width:auto; padding:8px 16px;" onclick="addNewProduct()">+ Add Product</button>
+        <button class="btn-primary" style="width:auto; padding:10px 18px;" onclick="showAddProductModal()">+ Scan & Add Product</button>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Barcode</th>
-            <th>Item Name</th>
-            <th>Category</th>
-            <th>Price</th>
-            <th>Stock Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${products.map(p => `
+      <div class="table-wrapper">
+        <table>
+          <thead>
             <tr>
-              <td><code>${p.barcode}</code></td>
-              <td><strong>${p.name}</strong></td>
-              <td>${p.category || 'General'}</td>
-              <td>₹${p.price.toFixed(2)}</td>
-              <td><span class="badge ${p.stock <= 10 ? 'badge-danger':'badge-success'}">${p.stock} units</span></td>
-              <td><button class="pill-btn" onclick="adjustProductStock(${p.id})">Adjust Stock</button></td>
+              <th>Barcode</th>
+              <th>Item Name</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Stock</th>
+              <th>Action</th>
             </tr>
-          `).join('')}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            ${products.map(p => `
+              <tr>
+                <td><code>${p.barcode}</code></td>
+                <td><strong>${p.name}</strong></td>
+                <td>${p.category || 'General'}</td>
+                <td>₹${p.price.toFixed(2)}</td>
+                <td><span class="badge ${p.stock <= 10 ? 'badge-danger':'badge-success'}">${p.stock} units</span></td>
+                <td><button class="pill-btn" onclick="adjustProductStock(${p.id})">Stock</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Add Product Modal with Barcode Scan Support -->
+    <div id="add-product-modal" class="modal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>📦 Add New Product</h3>
+          <button class="modal-close" onclick="closeAddProductModal()">×</button>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div>
+            <label style="font-size:0.85rem; font-weight:600; color:#718096;">Barcode / QR Code</label>
+            <div style="display:flex; gap:8px; margin-top:4px;">
+              <input type="text" id="new-prod-barcode" class="search-input" style="padding:10px;" placeholder="Scan or type barcode...">
+              <button class="btn-scan" onclick="openScanner('inventory')" style="padding:0 12px; font-size:0.85rem;">📷 Scan</button>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:0.85rem; font-weight:600; color:#718096;">Product Name</label>
+            <input type="text" id="new-prod-name" class="search-input" style="padding:10px; margin-top:4px;" placeholder="e.g. Special Loban Dhoop">
+          </div>
+          <div>
+            <label style="font-size:0.85rem; font-weight:600; color:#718096;">Category</label>
+            <select id="new-prod-category" class="search-input" style="padding:10px; margin-top:4px; width:100%;">
+              <option value="Agarbatti">Agarbatti</option>
+              <option value="Attar">Attar</option>
+              <option value="Dhoop">Dhoop</option>
+              <option value="Camphor">Camphor</option>
+              <option value="Pooja">Pooja Items</option>
+            </select>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <div>
+              <label style="font-size:0.85rem; font-weight:600; color:#718096;">Price (₹)</label>
+              <input type="number" id="new-prod-price" class="search-input" style="padding:10px; margin-top:4px;" placeholder="100">
+            </div>
+            <div>
+              <label style="font-size:0.85rem; font-weight:600; color:#718096;">Initial Stock</label>
+              <input type="number" id="new-prod-stock" class="search-input" style="padding:10px; margin-top:4px;" placeholder="50">
+            </div>
+          </div>
+          <button class="btn-primary" style="margin-top:8px;" onclick="saveNewProduct()">Save Product to Database</button>
+        </div>
+      </div>
     </div>
   `;
 }
 
-window.addNewProduct = () => {
-  const name = prompt('Product Name:');
-  if (!name) return;
-  const barcode = prompt('Barcode / Code:') || Date.now().toString().slice(-6);
-  const category = prompt('Category (Agarbatti, Attar, Dhoop, Camphor, Pooja):') || 'General';
-  const price = parseFloat(prompt('Selling Price (₹):') || '0');
-  const stock = parseInt(prompt('Stock Quantity:') || '0', 10);
+window.showAddProductModal = () => {
+  document.getElementById('add-product-modal').classList.add('active');
+  document.getElementById('new-prod-barcode').value = 'BS-' + Date.now().toString().slice(-5);
+};
+
+window.closeAddProductModal = () => {
+  document.getElementById('add-product-modal').classList.remove('active');
+};
+
+window.saveNewProduct = () => {
+  const barcode = document.getElementById('new-prod-barcode').value.trim();
+  const name = document.getElementById('new-prod-name').value.trim();
+  const category = document.getElementById('new-prod-category').value;
+  const price = parseFloat(document.getElementById('new-prod-price').value) || 0;
+  const stock = parseInt(document.getElementById('new-prod-stock').value, 10) || 0;
+
+  if (!name) {
+    alert('Please enter a product name.');
+    return;
+  }
 
   const products = StorageDB.getProducts();
   products.push({ id: Date.now(), barcode, name, category, price, stock });
   StorageDB.saveProducts(products);
+  closeAddProductModal();
   renderInventory();
 };
 
@@ -476,28 +541,30 @@ function renderAnalytics() {
 
     <div class="card">
       <h3>Recent Completed Invoices</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Invoice</th>
-            <th>Date & Time</th>
-            <th>Customer</th>
-            <th>Payment</th>
-            <th>Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${sales.map(s => `
+      <div class="table-wrapper">
+        <table>
+          <thead>
             <tr>
-              <td><strong>${s.invoiceNumber}</strong></td>
-              <td>${new Date(s.date).toLocaleString()}</td>
-              <td>${s.customerName || 'Walk-in'}</td>
-              <td><span class="badge ${s.payMode==='UPI'?'badge-success':'badge-danger'}">${s.payMode}</span></td>
-              <td>₹${s.total.toFixed(2)}</td>
+              <th>Invoice</th>
+              <th>Date & Time</th>
+              <th>Customer</th>
+              <th>Payment</th>
+              <th>Amount</th>
             </tr>
-          `).join('') || '<tr><td colspan="5">No completed sales yet.</td></tr>'}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            ${sales.map(s => `
+              <tr>
+                <td><strong>${s.invoiceNumber}</strong></td>
+                <td>${new Date(s.date).toLocaleString()}</td>
+                <td>${s.customerName || 'Walk-in'}</td>
+                <td><span class="badge ${s.payMode==='UPI'?'badge-success':'badge-danger'}">${s.payMode}</span></td>
+                <td>₹${s.total.toFixed(2)}</td>
+              </tr>
+            `).join('') || '<tr><td colspan="5">No completed sales yet.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
     </div>
   `;
 }
@@ -510,24 +577,26 @@ function renderCustomers() {
     <div class="card">
       <h2>Udhaar (Store Credit) Ledger</h2>
       <p class="text-muted" style="margin-bottom:15px;">Track pending payments from regular customers.</p>
-      <table>
-        <thead>
-          <tr>
-            <th>Customer Name</th>
-            <th>Outstanding Balance</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${custs.map((c, idx) => `
+      <div class="table-wrapper">
+        <table>
+          <thead>
             <tr>
-              <td><strong>${c.name}</strong></td>
-              <td style="color:var(--danger); font-weight:700;">₹${c.balance.toFixed(2)}</td>
-              <td><button class="pill-btn" onclick="clearUdhaar(${c.id})">Clear Balance</button></td>
+              <th>Customer Name</th>
+              <th>Outstanding Balance</th>
+              <th>Action</th>
             </tr>
-          `).join('') || '<tr><td colspan="3">No pending credit accounts.</td></tr>'}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            ${custs.map((c, idx) => `
+              <tr>
+                <td><strong>${c.name}</strong></td>
+                <td style="color:var(--danger); font-weight:700;">₹${c.balance.toFixed(2)}</td>
+                <td><button class="pill-btn" onclick="clearUdhaar(${c.id})">Clear Balance</button></td>
+              </tr>
+            `).join('') || '<tr><td colspan="3">No pending credit accounts.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
     </div>
   `;
 }
