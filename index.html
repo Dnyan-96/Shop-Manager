@@ -5,43 +5,50 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Balaji Sugandhalay - Shop Manager POS</title>
   
-  <!-- PWA Meta Tags -->
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#8b1538">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="BalajiPOS">
   <link rel="apple-touch-icon" href="./icon-192.png">
 
   <link rel="stylesheet" href="./style.css">
   
-  <!-- HTML5 QR Code Scanner -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-  <!-- QRCode Generator -->
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </head>
 <body>
   <div class="app-layout">
-    <!-- Sidebar Navigation -->
-    <aside class="sidebar">
+    <!-- Mobile Header Bar -->
+    <header class="mobile-header">
+      <button class="menu-toggle-btn" onclick="toggleSidebar()">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="mobile-brand-title">Balaji Sugandhalay</div>
+    </header>
+
+    <!-- Overlay for mobile drawer -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- Left Sidebar Navigation (Auto-hide on mobile, fixed on desktop) -->
+    <aside class="sidebar" id="sidebar">
       <div class="brand">
-        <img src="./logo.png" alt="Balaji Sugandhalay Logo" class="brand-logo" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'48\' height=\'48\' viewBox=\'0 0 24 24\'><rect width=\'24\' height=\'24\' fill=\'%238b1538\'/><text x=\'50%\' y=\'55%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23d4a373\' font-size=\'12\' font-weight=\'bold\'>BS</text></svg>';">
+        <img src="./logo.png" alt="Logo" class="brand-logo" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'48\' height=\'48\' viewBox=\'0 0 24 24\'><rect width=\'24\' height=\'24\' fill=\'%238b1538\'/><text x=\'50%\' y=\'55%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23d4a373\' font-size=\'12\' font-weight=\'bold\'>BS</text></svg>';">
         <div class="brand-text">
           <h2>Balaji Sugandhalay</h2>
           <span class="tagline">Shop Manager POS</span>
         </div>
       </div>
       <nav class="nav-menu">
-        <button class="nav-btn active" data-view="billing">⚡ Billing / POS</button>
-        <button class="nav-btn" data-view="inventory">📦 Inventory & Stock</button>
-        <button class="nav-btn" data-view="analytics">📊 Sales & Reports</button>
-        <button class="nav-btn" data-view="customers">👥 Udhaar Ledger</button>
-        <button class="nav-btn" data-view="backup">💾 Backup & Restore</button>
+        <button class="nav-btn active" data-view="billing" onclick="navigateView('billing')">⚡ Billing / POS</button>
+        <button class="nav-btn" data-view="inventory" onclick="navigateView('inventory')">📦 Inventory & Stock</button>
+        <button class="nav-btn" data-view="analytics" onclick="navigateView('analytics')">📊 Sales & Reports</button>
+        <button class="nav-btn" data-view="customers" onclick="navigateView('customers')">👥 Udhaar Ledger</button>
+        <button class="nav-btn" data-view="backup" onclick="navigateView('backup')">💾 Backup & Restore</button>
       </nav>
       <div class="sidebar-bottom">
         <button id="btn-install" class="btn-install" style="display: none;">📲 Install App</button>
-        <small class="version-tag">v5.0 • PWA & LocalStorage</small>
+        <small class="version-tag">v6.0 • Responsive Auto-Hide</small>
       </div>
     </aside>
 
@@ -76,7 +83,6 @@
     </div>
   </div>
 
-  <!-- Thermal Print Template -->
   <div id="print-area"></div>
 
   <script src="./app.js"></script>

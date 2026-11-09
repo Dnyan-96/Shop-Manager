@@ -41,6 +41,25 @@ let html5QrScanner = null;
 let deferredPrompt = null;
 let activeScanTarget = null;
 
+// Auto-hide sidebar toggle on mobile
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  if (sidebar && overlay) {
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('open');
+  }
+}
+
+function navigateView(viewName) {
+  currentView = viewName;
+  renderCurrentView();
+  // Auto-hide sidebar on mobile after clicking navigation
+  if (window.innerWidth <= 860) {
+    toggleSidebar();
+  }
+}
+
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
@@ -62,20 +81,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  document.querySelectorAll('.nav-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-      const target = e.currentTarget;
-      target.classList.add('active');
-      currentView = target.dataset.view;
-      renderCurrentView();
-    });
-  });
-
   renderBilling();
 });
 
 function renderCurrentView() {
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    if (b.dataset.view === currentView) {
+      b.classList.add('active');
+    } else {
+      b.classList.remove('active');
+    }
+  });
+
   if (currentView === 'billing') renderBilling();
   else if (currentView === 'inventory') renderInventory();
   else if (currentView === 'analytics') renderAnalytics();
@@ -253,7 +270,7 @@ window.removeCartItem = (idx) => {
   updateCartUI();
 };
 
-// CAMERA SCANNER WITH TARGET SUPPORT
+// CAMERA SCANNER
 window.openScanner = (target = 'pos') => {
   activeScanTarget = target;
   const modal = document.getElementById('scanner-modal');
@@ -446,7 +463,7 @@ function renderInventory() {
           </div>
           <div>
             <label style="font-size:0.85rem; font-weight:600; color:#718096;">Product Name</label>
-            <input type="text" id="new-prod-name" class="search-input" style="padding:10px; margin-top:4px;" placeholder="e.g. Special Loban Dhoop">
+            <input type="text" id="new-prod-name" class="search-input" style="padding:10px; margin-top:4px;" placeholder="e.g. Special Loban Dwood">
           </div>
           <div>
             <label style="font-size:0.85rem; font-weight:600; color:#718096;">Category</label>

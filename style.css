@@ -30,8 +30,51 @@ body {
   display: flex;
   height: 100vh;
   width: 100vw;
+  position: relative;
 }
 
+/* Mobile Header Bar */
+.mobile-header {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: #141821;
+  color: #fff;
+  z-index: 100;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.menu-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px;
+}
+
+.menu-toggle-btn span {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: var(--gold);
+  border-radius: 2px;
+}
+
+.mobile-brand-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-left: 12px;
+  color: #fff;
+}
+
+/* Sidebar Navigation (Left) */
 .sidebar {
   width: 260px;
   background: #141821;
@@ -40,6 +83,17 @@ body {
   flex-direction: column;
   flex-shrink: 0;
   border-right: 1px solid rgba(255,255,255,0.08);
+  z-index: 200;
+  transition: transform 0.3s ease;
+}
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 150;
+  backdrop-filter: blur(2px);
 }
 
 .brand {
@@ -95,6 +149,7 @@ body {
   align-items: center;
   gap: 10px;
   transition: all 0.2s;
+  width: 100%;
 }
 
 .nav-btn:hover {
@@ -468,13 +523,27 @@ th {
 .badge-danger { background: #fee2e2; color: #dc2626; }
 .badge-success { background: #d1fae5; color: #059669; }
 
+/* Responsive Auto-Hide Sidebar for Mobile */
 @media (max-width: 860px) {
   body { height: auto; overflow-y: auto; }
-  .app-layout { flex-direction: column; }
-  .sidebar { width: 100%; height: auto; }
-  .nav-menu { flex-direction: row; overflow-x: auto; padding: 8px; }
+  .mobile-header { display: flex; }
+  .app-layout { flex-direction: column; padding-top: 60px; }
+  .sidebar {
+    position: fixed;
+    top: 60px;
+    bottom: 0;
+    left: 0;
+    transform: translateX(-100%);
+    box-shadow: 5px 0 25px rgba(0,0,0,0.3);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  .sidebar-overlay.open {
+    display: block;
+  }
+  .main-content { padding: 14px; height: calc(100vh - 60px); }
   .pos-screen { grid-template-columns: 1fr; height: auto; }
-  .sidebar-bottom { display: flex; flex-direction: column; }
 }
 
 @media print {
